@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'app_theme.dart';
+import 'screens/auth/login_screen.dart';
 
 void main() {
   runApp(const DigitalFridgeApp());
@@ -12,14 +14,8 @@ class DigitalFridgeApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Digital Fridge',
-      home: Scaffold(
-        body: Center(
-          child: Text(
-            'It is a Digital Fridge App',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.normal),
-          ),
-        ),
-      ),
+      theme: lightTheme,
+      home: const LoginScreen(),
     );
   }
 }
