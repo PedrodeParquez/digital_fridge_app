@@ -401,6 +401,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                                 subtitle: Text(
                                   [
                                     if (p.brand.isNotEmpty) p.brand,
+                                    if (p.quantity != null &&
+                                        p.quantity!.isNotEmpty)
+                                      p.quantity!,
                                     if (p.calories > 0)
                                       '${p.calories.toStringAsFixed(0)} ккал/100г',
                                   ].join(' · '),

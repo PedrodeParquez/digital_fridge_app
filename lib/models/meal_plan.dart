@@ -1,12 +1,24 @@
 class DailyRation {
   final DateTime date;
-  String? breakfast;
-  String? lunch;
-  String? snack;
-  String? dinner;
+
+  // ID рецептов — отправляются на бэкенд
+  final int? breakfastRecipeId;
+  final int? lunchRecipeId;
+  final int? snackRecipeId;
+  final int? dinnerRecipeId;
+
+  // Названия блюд — приходят с бэкенда (JOIN по рецепту), readonly
+  final String? breakfast;
+  final String? lunch;
+  final String? snack;
+  final String? dinner;
 
   DailyRation({
     required this.date,
+    this.breakfastRecipeId,
+    this.lunchRecipeId,
+    this.snackRecipeId,
+    this.dinnerRecipeId,
     this.breakfast,
     this.lunch,
     this.snack,
@@ -14,24 +26,66 @@ class DailyRation {
   });
 
   bool get isEmpty =>
-      breakfast == null && lunch == null && snack == null && dinner == null;
+      breakfastRecipeId == null &&
+      lunchRecipeId == null &&
+      snackRecipeId == null &&
+      dinnerRecipeId == null;
 
   factory DailyRation.fromJson(Map<String, dynamic> json) => DailyRation(
     date: DateTime.parse(json['date'] as String),
+    breakfastRecipeId: json['breakfast_recipe_id'] as int?,
+    lunchRecipeId: json['lunch_recipe_id'] as int?,
+    snackRecipeId: json['snack_recipe_id'] as int?,
+    dinnerRecipeId: json['dinner_recipe_id'] as int?,
     breakfast: json['breakfast'] as String?,
     lunch: json['lunch'] as String?,
     snack: json['snack'] as String?,
     dinner: json['dinner'] as String?,
   );
 
+  // Отправляем только ID рецептов — названия бэкенд подставляет сам
   Map<String, dynamic> toJson() => {
     'date': date.toIso8601String(),
-    'breakfast': breakfast,
-    'lunch': lunch,
-    'snack': snack,
-    'dinner': dinner,
+    'breakfast_recipe_id': breakfastRecipeId,
+    'lunch_recipe_id': lunchRecipeId,
+    'snack_recipe_id': snackRecipeId,
+    'dinner_recipe_id': dinnerRecipeId,
   };
+
+  DailyRation copyWith({
+    DateTime? date,
+    Object? breakfastRecipeId = _absent,
+    Object? lunchRecipeId = _absent,
+    Object? snackRecipeId = _absent,
+    Object? dinnerRecipeId = _absent,
+    Object? breakfast = _absent,
+    Object? lunch = _absent,
+    Object? snack = _absent,
+    Object? dinner = _absent,
+  }) =>
+      DailyRation(
+        date: date ?? this.date,
+        breakfastRecipeId: breakfastRecipeId == _absent
+            ? this.breakfastRecipeId
+            : breakfastRecipeId as int?,
+        lunchRecipeId: lunchRecipeId == _absent
+            ? this.lunchRecipeId
+            : lunchRecipeId as int?,
+        snackRecipeId: snackRecipeId == _absent
+            ? this.snackRecipeId
+            : snackRecipeId as int?,
+        dinnerRecipeId: dinnerRecipeId == _absent
+            ? this.dinnerRecipeId
+            : dinnerRecipeId as int?,
+        breakfast:
+            breakfast == _absent ? this.breakfast : breakfast as String?,
+        lunch: lunch == _absent ? this.lunch : lunch as String?,
+        snack: snack == _absent ? this.snack : snack as String?,
+        dinner: dinner == _absent ? this.dinner : dinner as String?,
+      );
 }
+
+const _absent = Object();
 
 class MealPlan {
   final String id;
