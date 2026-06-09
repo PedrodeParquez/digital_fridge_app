@@ -33,6 +33,11 @@ class AppStore {
 
   void addRecipe(Recipe recipe) => recipes.add(recipe);
 
+  void updateRecipe(Recipe recipe) {
+    final idx = recipes.indexWhere((r) => r.id == recipe.id);
+    if (idx != -1) recipes[idx] = recipe;
+  }
+
   void toggleFavorite(String recipeId) {
     if (favoriteRecipeIds.contains(recipeId)) {
       favoriteRecipeIds.remove(recipeId);

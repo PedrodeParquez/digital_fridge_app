@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/preference_option.dart';
 import '../../models/recipe.dart';
 import '../../services/api_client.dart';
@@ -19,24 +23,130 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     BoxShadow(color: Color(0x0D000000), blurRadius: 12, offset: Offset(0, 3)),
   ];
 
+  late Recipe _recipe;
+
+  @override
+  void initState() {
+    super.initState();
+    _recipe = widget.recipe;
+  }
+
   bool get _isFav =>
-      AppStore.instance.favoriteRecipeIds.contains(widget.recipe.id);
+      AppStore.instance.favoriteRecipeIds.contains(_recipe.id);
 
   Future<void> _toggleFavorite() async {
     final wasFav = _isFav;
-    setState(() => AppStore.instance.toggleFavorite(widget.recipe.id));
+    setState(() => AppStore.instance.toggleFavorite(_recipe.id));
     try {
-      await RecipeService.instance.toggleFavorite(widget.recipe.id, wasFav);
+      await RecipeService.instance.toggleFavorite(_recipe.id, wasFav);
     } catch (_) {
-      if (mounted)
-        setState(() => AppStore.instance.toggleFavorite(widget.recipe.id));
+      if (mounted) {
+        setState(() => AppStore.instance.toggleFavorite(_recipe.id));
+      }
+    }
+  }
+
+  Future<void> _showImageOptions() async {
+    final hasImage = _recipe.mainImageUrl != null;
+    await showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(hasImage ? 'Изменить фото' : 'Загрузить фото'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadImage();
+              },
+            ),
+            if (hasImage)
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.red,
+                ),
+                title: const Text(
+                  'Удалить фото',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteCurrentImage();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+    try {
+      final updated = await RecipeService.instance.uploadImage(
+        _recipe.id,
+        File(picked.path),
+      );
+      setState(() => _recipe = updated);
+      AppStore.instance.updateRecipe(updated);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось загрузить фото')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteCurrentImage() async {
+    if (_recipe.images.isEmpty) return;
+    final image = [..._recipe.images]
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final main = image.first;
+    try {
+      await RecipeService.instance.deleteImage(
+        _recipe.id,
+        main.id.toString(),
+      );
+      final remaining = _recipe.images.where((i) => i.id != main.id).toList();
+      final updated = Recipe(
+        id: _recipe.id,
+        name: _recipe.name,
+        description: _recipe.description,
+        calories: _recipe.calories,
+        proteins: _recipe.proteins,
+        fats: _recipe.fats,
+        carbs: _recipe.carbs,
+        servings: _recipe.servings,
+        cookTimeMinutes: _recipe.cookTimeMinutes,
+        isPersonal: _recipe.isPersonal,
+        ingredients: _recipe.ingredients,
+        steps: _recipe.steps,
+        images: remaining,
+        requiredEquipment: _recipe.requiredEquipment,
+      );
+      setState(() => _recipe = updated);
+      AppStore.instance.updateRecipe(updated);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Не удалось удалить фото')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final r = widget.recipe;
+    final r = _recipe;
 
     return Scaffold(
       backgroundColor: cs.surface,
@@ -153,13 +263,39 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
           ),
         ),
-        background: r.mainImageUrl != null
-            ? Image.network(
-                '${ApiClient.baseUrl}${r.mainImageUrl}',
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _imagePlaceholder(),
-              )
-            : _imagePlaceholder(),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            r.mainImageUrl != null
+                ? CachedNetworkImage(
+                    imageUrl: '${ApiClient.baseUrl}${r.mainImageUrl}',
+                    fit: BoxFit.cover,
+                    placeholder: (_, url) => _imagePlaceholder(),
+                    errorWidget: (_, url, e) => _imagePlaceholder(),
+                  )
+                : _imagePlaceholder(),
+            if (r.isPersonal)
+              Positioned(
+                bottom: 48,
+                right: 12,
+                child: GestureDetector(
+                  onTap: _showImageOptions,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -397,7 +533,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     width: 20,
                     height: 20,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) =>
+                    errorBuilder: (_, e, s) =>
                         Icon(Icons.kitchen, size: 18, color: cs.primary),
                   ),
                 )

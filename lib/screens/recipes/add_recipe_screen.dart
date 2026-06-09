@@ -114,10 +114,14 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     setState(() => _saving = true);
     try {
       final saved = await RecipeService.instance.createRecipe(recipe);
+      Recipe finalRecipe = saved;
       if (_imageFile != null) {
-        await RecipeService.instance.uploadImage(saved.id, File(_imageFile!.path));
+        finalRecipe = await RecipeService.instance.uploadImage(
+          saved.id,
+          File(_imageFile!.path),
+        );
       }
-      AppStore.instance.addRecipe(saved);
+      AppStore.instance.addRecipe(finalRecipe);
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
       if (mounted) setState(() => _saving = false);

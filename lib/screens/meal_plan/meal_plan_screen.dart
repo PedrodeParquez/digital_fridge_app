@@ -102,30 +102,33 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Wrap(
-                spacing: 10,
+              Row(
                 children: List.generate(7, (i) {
                   final days = i + 1;
                   final sel = selected == days;
-                  return GestureDetector(
-                    onTap: () => setSheet(() => selected = days),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: sel
-                            ? cs.primary
-                            : cs.outline.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => setSheet(() => selected = days),
                       child: Center(
-                        child: Text(
-                          '$days',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: sel ? Colors.white : cs.onSurface,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? cs.primary
+                                : cs.outline.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$days',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: sel ? Colors.white : cs.onSurface,
+                              ),
+                            ),
                           ),
                         ),
                       ),

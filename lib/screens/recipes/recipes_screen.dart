@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../models/recipe.dart';
 import '../../services/api_client.dart';
@@ -626,10 +627,12 @@ class _RecipeCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   recipe.mainImageUrl != null
-                      ? Image.network(
-                          '${ApiClient.baseUrl}${recipe.mainImageUrl}',
+                      ? CachedNetworkImage(
+                          imageUrl:
+                              '${ApiClient.baseUrl}${recipe.mainImageUrl}',
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _recipePlaceholder(cs),
+                          placeholder: (_, url) => _recipePlaceholder(cs),
+                          errorWidget: (_, url, e) => _recipePlaceholder(cs),
                         )
                       : _recipePlaceholder(cs),
                   Positioned(
