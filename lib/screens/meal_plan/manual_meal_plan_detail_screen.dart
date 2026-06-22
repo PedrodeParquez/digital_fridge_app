@@ -26,7 +26,6 @@ class _ManualMealPlanDetailScreenState
   bool _saving = false;
   bool _hasChanges = false;
 
-  // Слоты приёма пищи: (ключ, emoji, название)
   static const _slots = [
     ('breakfast', '🍳', 'Завтрак'),
     ('lunch', '🥗', 'Обед'),
@@ -72,21 +71,21 @@ class _ManualMealPlanDetailScreenState
     final old = _days[dayIndex];
     final updated = switch (slot) {
       'breakfast' => old.copyWith(
-          breakfastRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
-          breakfast: recipe?.name,
-        ),
+        breakfastRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
+        breakfast: recipe?.name,
+      ),
       'lunch' => old.copyWith(
-          lunchRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
-          lunch: recipe?.name,
-        ),
+        lunchRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
+        lunch: recipe?.name,
+      ),
       'snack' => old.copyWith(
-          snackRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
-          snack: recipe?.name,
-        ),
+        snackRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
+        snack: recipe?.name,
+      ),
       'dinner' => old.copyWith(
-          dinnerRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
-          dinner: recipe?.name,
-        ),
+        dinnerRecipeId: recipe != null ? int.tryParse(recipe.id) : null,
+        dinner: recipe?.name,
+      ),
       _ => old,
     };
     setState(() {
@@ -107,9 +106,9 @@ class _ManualMealPlanDetailScreenState
       await MealPlanService.instance.updateMealPlan(updated);
       if (mounted) {
         setState(() => _hasChanges = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Рацион сохранён')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Рацион сохранён')));
       }
     } catch (_) {
       if (mounted) {
@@ -129,12 +128,10 @@ class _ManualMealPlanDetailScreenState
     final recipeId = _recipeIdForSlot(_days[dayIndex], slot);
 
     if (recipeId != null) {
-      final recipe = AppStore.instance.recipes
-          .cast<Recipe?>()
-          .firstWhere(
-            (r) => r?.id == recipeId.toString(),
-            orElse: () => null,
-          );
+      final recipe = AppStore.instance.recipes.cast<Recipe?>().firstWhere(
+        (r) => r?.id == recipeId.toString(),
+        orElse: () => null,
+      );
       if (recipe != null) {
         _showMealOptions(dayIndex, slot, recipe);
         return;
@@ -198,7 +195,10 @@ class _ManualMealPlanDetailScreenState
               },
             ),
             ListTile(
-              leading: const Icon(Icons.remove_circle_outline, color: Colors.red),
+              leading: const Icon(
+                Icons.remove_circle_outline,
+                color: Colors.red,
+              ),
               title: const Text(
                 'Убрать блюдо',
                 style: TextStyle(color: Colors.red),
@@ -228,9 +228,7 @@ class _ManualMealPlanDetailScreenState
           void onSearch(String q) {
             setSheet(() {
               filtered = AppStore.instance.recipes
-                  .where(
-                    (r) => r.name.toLowerCase().contains(q.toLowerCase()),
-                  )
+                  .where((r) => r.name.toLowerCase().contains(q.toLowerCase()))
                   .toList();
             });
           }
@@ -242,8 +240,9 @@ class _ManualMealPlanDetailScreenState
             builder: (_, scrollCtrl) => Container(
               decoration: BoxDecoration(
                 color: cs.surface,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
               child: Column(
                 children: [
@@ -278,8 +277,11 @@ class _ManualMealPlanDetailScreenState
                       child: Row(
                         children: [
                           const SizedBox(width: 12),
-                          Icon(Icons.search,
-                              color: cs.onSurfaceVariant, size: 20),
+                          Icon(
+                            Icons.search,
+                            color: cs.onSurfaceVariant,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TextField(
@@ -289,7 +291,9 @@ class _ManualMealPlanDetailScreenState
                               decoration: InputDecoration(
                                 hintText: 'Название рецепта...',
                                 hintStyle: TextStyle(
-                                    color: cs.onSurfaceVariant, fontSize: 14),
+                                  color: cs.onSurfaceVariant,
+                                  fontSize: 14,
+                                ),
                                 border: InputBorder.none,
                                 isDense: true,
                                 contentPadding: EdgeInsets.zero,
@@ -308,24 +312,22 @@ class _ManualMealPlanDetailScreenState
                         ? Center(
                             child: Text(
                               'Рецепты не найдены',
-                              style:
-                                  TextStyle(color: cs.onSurfaceVariant),
+                              style: TextStyle(color: cs.onSurfaceVariant),
                             ),
                           )
                         : ListView.builder(
                             controller: scrollCtrl,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: filtered.length,
                             itemBuilder: (_, i) {
                               final r = filtered[i];
                               return ListTile(
-                                contentPadding:
-                                    const EdgeInsets.symmetric(
-                                        horizontal: 4, vertical: 2),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
                                 leading: ClipRRect(
-                                  borderRadius:
-                                      BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(10),
                                   child: SizedBox(
                                     width: 44,
                                     height: 44,
@@ -333,10 +335,8 @@ class _ManualMealPlanDetailScreenState
                                         ? Image.network(
                                             r.mainImageUrl!,
                                             fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (_, e, s) =>
-                                                    _recipePlaceholder(
-                                                        cs),
+                                            errorBuilder: (_, e, s) =>
+                                                _recipePlaceholder(cs),
                                           )
                                         : _recipePlaceholder(cs),
                                   ),
@@ -380,10 +380,9 @@ class _ManualMealPlanDetailScreenState
   }
 
   Widget _recipePlaceholder(ColorScheme cs) => Container(
-        color: cs.primary.withValues(alpha: 0.08),
-        child: Icon(Icons.restaurant_outlined,
-            color: cs.primary, size: 22),
-      );
+    color: cs.primary.withValues(alpha: 0.08),
+    child: Icon(Icons.restaurant_outlined, color: cs.primary, size: 22),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -395,8 +394,7 @@ class _ManualMealPlanDetailScreenState
         backgroundColor: cs.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new,
-              color: cs.onSurface, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new, color: cs.onSurface, size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -434,8 +432,7 @@ class _ManualMealPlanDetailScreenState
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          for (int i = 0; i < _days.length; i++)
-            _dayCard(cs, i, _days[i]),
+          for (int i = 0; i < _days.length; i++) _dayCard(cs, i, _days[i]),
         ],
       ),
     );
@@ -443,8 +440,13 @@ class _ManualMealPlanDetailScreenState
 
   Widget _dayCard(ColorScheme cs, int index, DailyRation day) {
     const weekdays = [
-      'Понедельник', 'Вторник', 'Среда', 'Четверг',
-      'Пятница', 'Суббота', 'Воскресенье',
+      'Понедельник',
+      'Вторник',
+      'Среда',
+      'Четверг',
+      'Пятница',
+      'Суббота',
+      'Воскресенье',
     ];
     final weekday = weekdays[day.date.weekday - 1];
     final dateStr =
@@ -475,14 +477,12 @@ class _ManualMealPlanDetailScreenState
                 const SizedBox(width: 8),
                 Text(
                   dateStr,
-                  style:
-                      TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                  style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
                 ),
               ],
             ),
           ),
-          Divider(
-              height: 0, color: cs.outline.withValues(alpha: 0.4)),
+          Divider(height: 0, color: cs.outline.withValues(alpha: 0.4)),
           for (int s = 0; s < _slots.length; s++)
             _mealRow(cs, index, day, _slots[s], last: s == _slots.length - 1),
         ],
@@ -510,8 +510,7 @@ class _ManualMealPlanDetailScreenState
               ? const BorderRadius.vertical(bottom: Radius.circular(16))
               : BorderRadius.zero,
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 Text(emoji, style: const TextStyle(fontSize: 18)),
@@ -520,8 +519,7 @@ class _ManualMealPlanDetailScreenState
                   width: 68,
                   child: Text(
                     label,
-                    style: TextStyle(
-                        fontSize: 13, color: cs.onSurfaceVariant),
+                    style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
                   ),
                 ),
                 Expanded(
@@ -546,9 +544,7 @@ class _ManualMealPlanDetailScreenState
                 ),
                 const SizedBox(width: 4),
                 Icon(
-                  hasRecipe
-                      ? Icons.chevron_right
-                      : Icons.add_circle_outline,
+                  hasRecipe ? Icons.chevron_right : Icons.add_circle_outline,
                   size: 18,
                   color: hasRecipe ? cs.onSurfaceVariant : cs.primary,
                 ),

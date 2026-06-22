@@ -86,7 +86,6 @@ class HomeScreenState extends State<HomeScreen> {
     return 'Доброй ночи';
   }
 
-
   DailyTargets get _effectiveTargets =>
       AppStore.instance.dailyTargets ?? DailyTargets.defaultTargets;
 

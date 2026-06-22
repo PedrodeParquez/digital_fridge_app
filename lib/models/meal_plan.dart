@@ -1,13 +1,10 @@
 class DailyRation {
   final DateTime date;
 
-  // ID рецептов — отправляются на бэкенд
   final int? breakfastRecipeId;
   final int? lunchRecipeId;
   final int? snackRecipeId;
   final int? dinnerRecipeId;
-
-  // Названия блюд — приходят с бэкенда (JOIN по рецепту), readonly
   final String? breakfast;
   final String? lunch;
   final String? snack;
@@ -43,7 +40,6 @@ class DailyRation {
     dinner: json['dinner'] as String?,
   );
 
-  // Отправляем только ID рецептов — названия бэкенд подставляет сам
   Map<String, dynamic> toJson() => {
     'date': date.toIso8601String(),
     'breakfast_recipe_id': breakfastRecipeId,
@@ -62,27 +58,25 @@ class DailyRation {
     Object? lunch = _absent,
     Object? snack = _absent,
     Object? dinner = _absent,
-  }) =>
-      DailyRation(
-        date: date ?? this.date,
-        breakfastRecipeId: breakfastRecipeId == _absent
-            ? this.breakfastRecipeId
-            : breakfastRecipeId as int?,
-        lunchRecipeId: lunchRecipeId == _absent
-            ? this.lunchRecipeId
-            : lunchRecipeId as int?,
-        snackRecipeId: snackRecipeId == _absent
-            ? this.snackRecipeId
-            : snackRecipeId as int?,
-        dinnerRecipeId: dinnerRecipeId == _absent
-            ? this.dinnerRecipeId
-            : dinnerRecipeId as int?,
-        breakfast:
-            breakfast == _absent ? this.breakfast : breakfast as String?,
-        lunch: lunch == _absent ? this.lunch : lunch as String?,
-        snack: snack == _absent ? this.snack : snack as String?,
-        dinner: dinner == _absent ? this.dinner : dinner as String?,
-      );
+  }) => DailyRation(
+    date: date ?? this.date,
+    breakfastRecipeId: breakfastRecipeId == _absent
+        ? this.breakfastRecipeId
+        : breakfastRecipeId as int?,
+    lunchRecipeId: lunchRecipeId == _absent
+        ? this.lunchRecipeId
+        : lunchRecipeId as int?,
+    snackRecipeId: snackRecipeId == _absent
+        ? this.snackRecipeId
+        : snackRecipeId as int?,
+    dinnerRecipeId: dinnerRecipeId == _absent
+        ? this.dinnerRecipeId
+        : dinnerRecipeId as int?,
+    breakfast: breakfast == _absent ? this.breakfast : breakfast as String?,
+    lunch: lunch == _absent ? this.lunch : lunch as String?,
+    snack: snack == _absent ? this.snack : snack as String?,
+    dinner: dinner == _absent ? this.dinner : dinner as String?,
+  );
 }
 
 const _absent = Object();

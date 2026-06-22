@@ -47,7 +47,7 @@ class AuthService {
     try {
       await _client.dio.post('/auth/logout');
     } on DioException {
-      // игнорируем ошибку сети — токен всё равно удаляем
+      // Игнорируем ошибку сети — токен всё равно удаляем
     } finally {
       await _client.clearToken();
     }

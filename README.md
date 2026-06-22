@@ -1,17 +1,165 @@
-# digital_fridge_app
+<div align="center">
 
-A new Flutter project.
+# 🧊 Цифровой холодильник
 
-## Getting Started
+**Мобильное приложение для учёта продуктов, планирования питания и умных покупок**
 
-This project is a starting point for a Flutter application.
+[![Flutter](https://img.shields.io/badge/Flutter-3.11+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.11+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-3DDC84?logo=android&logoColor=white)](#)
+[![License](https://img.shields.io/badge/License-Educational-2E9B45)](#-лицензия)
 
-A few resources to get you started if this is your first Flutter project:
+</div>
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📖 О проекте
+
+**Цифровой холодильник** — это Flutter-приложение, которое помогает следить за продуктами дома, не выбрасывать просрочку, планировать рацион и автоматически составлять списки покупок.
+
+Приложение объединяет в себе:
+- 🥦 учёт продуктов в холодильнике с контролем сроков годности и КБЖУ;
+- 🧾 историю покупок, в том числе автоматический разбор кассовых **QR-чеков**;
+- 🍳 каталог рецептов с личными рецептами и избранным;
+- 📅 планы питания по дням с автогенерацией списка покупок;
+- 🔍 поиск продуктов по названию и **штрихкоду** через базу OpenFoodFacts.
+
+---
+
+## ✨ Возможности
+
+| Раздел | Что умеет |
+|--------|-----------|
+| 🏠 **Главная** | Приветствие по времени суток, баннер активного плана питания, блок «Сегодня вы съели» |
+| 🥦 **Продукты** | Список холодильника, контроль сроков годности (`скоро испортится` / `просрочено`), КБЖУ, удаление свайпом |
+| ➕ **Добавление продукта** | Поиск через OpenFoodFacts (автодополнение), сканер штрихкода, фото, ручной ввод КБЖУ |
+| 🧾 **Покупки** | История покупок, ручное добавление и **разбор QR-чеков** (Проверка чека) |
+| 🍳 **Рецепты** | «Мои рецепты» и рекомендации, поиск с debounce, фильтр по времени готовки, сортировка, избранное |
+| 📅 **Планы питания** | Планы по дням (завтрак / обед / перекус / ужин), выбор рецептов |
+| 🛒 **Список покупок** | Автогенерация: что нужно, что уже есть в холодильнике, чего не хватает |
+| 👤 **Профиль** | Личные данные, аватар с инициалами, настройки, выход |
+
+---
+
+## 🛠️ Технологии
+
+- **Flutter** (Dart) — кроссплатформенный UI
+- **[Dio](https://pub.dev/packages/dio)** — HTTP-клиент с Bearer-авторизацией и interceptor'ами
+- **[shared_preferences](https://pub.dev/packages/shared_preferences)** — локальное хранилище (токен, кеш)
+- **[mobile_scanner](https://pub.dev/packages/mobile_scanner)** — сканирование штрихкодов и QR
+- **[image_picker](https://pub.dev/packages/image_picker)** — камера и галерея
+- **[cached_network_image](https://pub.dev/packages/cached_network_image)** — кеширование изображений
+- **[OpenFoodFacts API](https://ru.openfoodfacts.org)** — внешняя база продуктов
+
+---
+
+## 🏗️ Архитектура
+
+```
+lib/
+├── main.dart                 # Точка входа, маршрутизация
+├── app_theme.dart            # Тема приложения (фирменный зелёный #2E9B45)
+├── store.dart                # AppStore — singleton с in-memory состоянием
+│
+├── models/                   # Модели данных
+│   ├── fridge_item.dart      #   продукт в холодильнике (+ КБЖУ, сроки)
+│   ├── recipe.dart           #   рецепт (ингредиенты, шаги, КБЖУ)
+│   ├── meal_plan.dart        #   план питания по дням
+│   ├── purchase.dart         #   покупка
+│   └── ...
+│
+├── services/                 # Слой работы с API (singleton'ы)
+│   ├── api_client.dart       #   настройка Dio + interceptor авторизации
+│   ├── auth_service.dart     #   вход / регистрация / выход
+│   ├── product_service.dart  #   CRUD продуктов холодильника
+│   ├── recipe_service.dart   #   рецепты + избранное
+│   ├── meal_plan_service.dart#   планы питания
+│   ├── receipt_service.dart  #   разбор QR-чеков
+│   ├── open_food_facts_service.dart # поиск продуктов
+│   └── ...
+│
+└── screens/                  # Экраны UI
+    ├── auth/                 #   вход, регистрация, онбординг
+    ├── home/                 #   главный экран
+    ├── products/             #   холодильник и покупки
+    ├── recipes/              #   рецепты
+    ├── meal_plan/            #   планы питания и списки покупок
+    └── profile/              #   профиль и настройки
+```
+
+**Поток данных:** `Screen` → `Service` (Dio) → `REST API` → модель → `AppStore` → `setState`.
+
+---
+
+## 🚀 Запуск
+
+### Требования
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) **3.11+**
+- Android Studio / Xcode (эмулятор или устройство)
+- Запущенный backend на `http://localhost:8080`
+
+### Установка
+
+```bash
+# 1. Клонировать репозиторий
+git clone <repo-url>
+cd digital_fridge_app
+
+# 2. Установить зависимости
+flutter pub get
+
+# 3. Запустить приложение
+flutter run
+```
+
+### Подключение к API
+
+Базовый адрес API задаётся в [`lib/services/api_client.dart`](lib/services/api_client.dart):
+
+```
+http://localhost:8080/api/v1
+```
+
+Чтобы устройство достучалось до backend'а, запущенного на ПК, порт пробрасывается
+через `adb` — одной командой и для эмулятора, и для реального телефона по USB:
+
+```bash
+adb reverse tcp:8080 tcp:8080
+```
+
+После этого `localhost:8080` внутри устройства ведёт на сервер вашего ПК.
+
+> 💡 `adb reverse` нужно повторять после переподключения устройства по USB
+> или перезапуска adb — `flutter run` его не восстанавливает.
+
+#### Запуск на реальном телефоне
+
+1. На телефоне включите **режим разработчика** и **отладку по USB**.
+2. Подключите телефон по USB и подтвердите запрос на отладку.
+3. Проверьте, что устройство видно: `flutter devices`.
+4. Пробросьте порт: `adb -s <ID_устройства> reverse tcp:8080 tcp:8080`.
+5. Запустите: `flutter run -d <ID_устройства>`.
+
+### Тестовый аккаунт
+
+```
+email:    test@test.com
+password: 123456
+```
+
+---
+
+
+## 🎨 Дизайн
+
+- **Фирменный цвет:** `#2E9B45` 🟢
+- **Карточки:** скруглённые углы (14–18px), мягкие тени
+- **Удаление:** свайп `Dismissible` с красным фоном
+- **Локализация:** интерфейс на русском языке
+
+---
+
+## 📜 Лицензия
+
+Проект разработан в учебных целях как дипломная работа.
+

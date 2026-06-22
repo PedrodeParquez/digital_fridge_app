@@ -305,14 +305,29 @@ class _PersonalDataScreenState extends State<PersonalDataScreen> {
             _activityLabel(_activityLevel),
             divider: true,
           ),
-          _prefRowChips(cs, 'Не ем', _labels(prefs?.intolerances ?? [], _options?.intolerances ?? []), divider: true),
+          _prefRowChips(
+            cs,
+            'Избегаю',
+            _labels(prefs?.intolerances ?? [], _options?.intolerances ?? []),
+            divider: true,
+          ),
           _prefRowChips(
             cs,
             'Люблю',
-            _labels(prefs?.favoriteProducts ?? [], _options?.favoriteProducts ?? []),
+            _labels(
+              prefs?.favoriteProducts ?? [],
+              _options?.favoriteProducts ?? [],
+            ),
             divider: true,
           ),
-          _prefRowChips(cs, 'Техника', _labels(prefs?.kitchenEquipment ?? [], _options?.kitchenEquipment ?? [])),
+          _prefRowChips(
+            cs,
+            'Техника',
+            _labels(
+              prefs?.kitchenEquipment ?? [],
+              _options?.kitchenEquipment ?? [],
+            ),
+          ),
         ],
       ),
     );

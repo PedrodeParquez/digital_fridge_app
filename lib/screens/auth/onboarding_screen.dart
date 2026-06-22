@@ -75,39 +75,53 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.initState();
     final dio = ApiClient.instance.dio;
 
-    RecipeService.instance.getRecipes().then((recipes) {
-      final seen = <String>{};
-      final unique = recipes.where((r) => seen.add(r.id)).toList();
-      if (mounted) setState(() {
-        _recipes = unique;
-        _loadingRecipes = false;
-        _recipesError = false;
-      });
-    }).catchError((_) {
-      if (mounted) setState(() {
-        _loadingRecipes = false;
-        _recipesError = true;
-      });
-    });
+    RecipeService.instance
+        .getRecipes()
+        .then((recipes) {
+          final seen = <String>{};
+          final unique = recipes.where((r) => seen.add(r.id)).toList();
+          if (mounted)
+            setState(() {
+              _recipes = unique;
+              _loadingRecipes = false;
+              _recipesError = false;
+            });
+        })
+        .catchError((_) {
+          if (mounted)
+            setState(() {
+              _loadingRecipes = false;
+              _recipesError = true;
+            });
+        });
 
-    dio.get('/preferences/options').then((res) {
-      final data = res.data as Map<String, dynamic>;
-      _ListItem parseOption(Map<String, dynamic> e) => _ListItem(
+    dio
+        .get('/preferences/options')
+        .then((res) {
+          final data = res.data as Map<String, dynamic>;
+          _ListItem parseOption(Map<String, dynamic> e) => _ListItem(
             e['key'] as String,
             e['label'] as String,
             e['image_url'] as String?,
           );
-      if (mounted) {
-        setState(() {
-          _avoidItems = (data['intolerances'] as List).map((e) => parseOption(e as Map<String, dynamic>)).toList();
-          _applianceItems = (data['kitchen_equipment'] as List).map((e) => parseOption(e as Map<String, dynamic>)).toList();
-          _favProductItems = (data['favorite_products'] as List).map((e) => parseOption(e as Map<String, dynamic>)).toList();
-          _loadingOptions = false;
+          if (mounted) {
+            setState(() {
+              _avoidItems = (data['intolerances'] as List)
+                  .map((e) => parseOption(e as Map<String, dynamic>))
+                  .toList();
+              _applianceItems = (data['kitchen_equipment'] as List)
+                  .map((e) => parseOption(e as Map<String, dynamic>))
+                  .toList();
+              _favProductItems = (data['favorite_products'] as List)
+                  .map((e) => parseOption(e as Map<String, dynamic>))
+                  .toList();
+              _loadingOptions = false;
+            });
+          }
+        })
+        .catchError((_) {
+          if (mounted) setState(() => _loadingOptions = false);
         });
-      }
-    }).catchError((_) {
-      if (mounted) setState(() => _loadingOptions = false);
-    });
   }
 
   @override
@@ -225,7 +239,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   int _favScore(Recipe r, List<String> favProducts) {
-    final text = r.ingredients.map((i) => i.productName.toLowerCase()).join(' ');
+    final text = r.ingredients
+        .map((i) => i.productName.toLowerCase())
+        .join(' ');
     return favProducts.where((p) => text.contains(p)).length;
   }
 
@@ -238,11 +254,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           .join(' ');
       return !avoid.any((key) => text.contains(key));
     }).toList();
-    // Если фильтр убрал всё — показываем все рецепты без фильтра
+
     if (filtered.isEmpty && _recipes.isNotEmpty) filtered = List.of(_recipes);
-    final favProducts = _selectedFavProducts.map((k) => k.toLowerCase()).toList();
+    final favProducts = _selectedFavProducts
+        .map((k) => k.toLowerCase())
+        .toList();
     if (favProducts.isNotEmpty) {
-      filtered.sort((a, b) => _favScore(b, favProducts) - _favScore(a, favProducts));
+      filtered.sort(
+        (a, b) => _favScore(b, favProducts) - _favScore(a, favProducts),
+      );
     }
     if (filtered.length > 10) filtered = filtered.sublist(0, 10);
     return filtered;
@@ -316,13 +336,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         _loadingRecipes = true;
                         _recipesError = false;
                       });
-                      RecipeService.instance.getRecipes().then((recipes) {
-                        final seen = <String>{};
-                        final unique = recipes.where((r) => seen.add(r.id)).toList();
-                        if (mounted) setState(() { _recipes = unique; _loadingRecipes = false; });
-                      }).catchError((_) {
-                        if (mounted) setState(() { _loadingRecipes = false; _recipesError = true; });
-                      });
+                      RecipeService.instance
+                          .getRecipes()
+                          .then((recipes) {
+                            final seen = <String>{};
+                            final unique = recipes
+                                .where((r) => seen.add(r.id))
+                                .toList();
+                            if (mounted)
+                              setState(() {
+                                _recipes = unique;
+                                _loadingRecipes = false;
+                              });
+                          })
+                          .catchError((_) {
+                            if (mounted)
+                              setState(() {
+                                _loadingRecipes = false;
+                                _recipesError = true;
+                              });
+                          });
                     },
                     selected: _selectedDishes,
                     onToggle: (v) => _toggle(_selectedDishes, v),
@@ -727,7 +760,7 @@ class _ListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final baseUrl = 'http://10.0.2.2:8080';
+    final baseUrl = ApiClient.baseUrl;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -829,10 +862,10 @@ class _ListPage extends StatelessWidget {
   }
 
   Widget _imgPlaceholder(ColorScheme cs) => Container(
-        width: 48,
-        height: 48,
-        color: cs.outline.withValues(alpha: 0.3),
-      );
+    width: 48,
+    height: 48,
+    color: cs.outline.withValues(alpha: 0.3),
+  );
 }
 
 class _DishPage extends StatelessWidget {
@@ -889,40 +922,44 @@ class _DishPage extends StatelessWidget {
           child: loading
               ? const Center(child: CircularProgressIndicator())
               : (error || recipes.isEmpty)
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              error ? Icons.wifi_off_outlined : Icons.restaurant_menu_outlined,
-                              size: 48,
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              error
-                                  ? 'Не удалось загрузить рецепты'
-                                  : 'Рецепты не найдены',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            if (error) ...[
-                              const SizedBox(height: 16),
-                              OutlinedButton(
-                                onPressed: onRetry,
-                                child: const Text('Повторить'),
-                              ),
-                            ],
-                          ],
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          error
+                              ? Icons.wifi_off_outlined
+                              : Icons.restaurant_menu_outlined,
+                          size: 48,
+                          color: Theme.of(context).colorScheme.outline,
                         ),
-                      ),
-                    )
-                  : GridView.builder(
+                        const SizedBox(height: 12),
+                        Text(
+                          error
+                              ? 'Не удалось загрузить рецепты'
+                              : 'Рецепты не найдены',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (error) ...[
+                          const SizedBox(height: 16),
+                          OutlinedButton(
+                            onPressed: onRetry,
+                            child: const Text('Повторить'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                )
+              : GridView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
@@ -954,7 +991,11 @@ class _DishCard extends StatelessWidget {
   final String name;
   final String? imageUrl;
   final bool isSelected;
-  const _DishCard({required this.name, this.imageUrl, required this.isSelected});
+  const _DishCard({
+    required this.name,
+    this.imageUrl,
+    required this.isSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1025,7 +1066,7 @@ class _DishCard extends StatelessWidget {
   }
 
   Widget _dishPlaceholder(ColorScheme cs) => Container(
-        color: cs.outline.withValues(alpha: 0.25),
-        child: Icon(Icons.restaurant, color: cs.onSurfaceVariant, size: 36),
-      );
+    color: cs.outline.withValues(alpha: 0.25),
+    child: Icon(Icons.restaurant, color: cs.onSurfaceVariant, size: 36),
+  );
 }
