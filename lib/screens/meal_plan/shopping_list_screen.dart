@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/generated_meal_plan.dart';
 import '../../services/meal_plan_service.dart';
 
@@ -21,6 +22,8 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   bool _loading = true;
   String? _error;
 
+  String get _prefsKey => 'shopping_checked_${widget.planId}';
+
   @override
   void initState() {
     super.initState();
@@ -33,8 +36,17 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         widget.planId,
       );
       if (!mounted) return;
+      final prefs = await SharedPreferences.getInstance();
+      final savedNames = prefs.getStringList(_prefsKey)?.toSet() ?? {};
+      if (!mounted) return;
       setState(() {
         _items = items;
+        _checked
+          ..clear()
+          ..addAll([
+            for (var i = 0; i < items.length; i++)
+              if (savedNames.contains(items[i].productName)) i,
+          ]);
         _loading = false;
       });
     } catch (e) {
@@ -44,6 +56,24 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _persist() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_prefsKey, [
+      for (final i in _checked) _items[i].productName,
+    ]);
+  }
+
+  void _toggle(int idx) {
+    setState(() {
+      if (_checked.contains(idx)) {
+        _checked.remove(idx);
+      } else {
+        _checked.add(idx);
+      }
+    });
+    _persist();
   }
 
   @override
@@ -133,11 +163,9 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
       ),
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        onTap: () =>
-            setState(() => done ? _checked.remove(idx) : _checked.add(idx)),
+        onTap: () => _toggle(idx),
         leading: GestureDetector(
-          onTap: () =>
-              setState(() => done ? _checked.remove(idx) : _checked.add(idx)),
+          onTap: () => _toggle(idx),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             width: 26,

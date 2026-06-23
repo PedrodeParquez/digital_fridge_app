@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -9,7 +10,10 @@ import '../../services/recipe_service.dart';
 import '../../store.dart';
 
 class AddRecipeScreen extends StatefulWidget {
-  const AddRecipeScreen({super.key});
+  /// Если задан — экран работает в режиме редактирования этого рецепта.
+  final Recipe? existing;
+
+  const AddRecipeScreen({super.key, this.existing});
 
   @override
   State<AddRecipeScreen> createState() => _AddRecipeScreenState();
@@ -43,6 +47,43 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   List<PreferenceOption> get _equipmentOptions =>
       AppStore.instance.kitchenEquipmentOptions;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.existing;
+    if (r == null) return;
+    _nameController.text = r.name;
+    _descController.text = r.description;
+    _caloriesController.text = _numText(r.calories);
+    _proteinsController.text = _numText(r.proteins);
+    _fatsController.text = _numText(r.fats);
+    _carbsController.text = _numText(r.carbs);
+    _timeController.text = r.cookTimeMinutes.toString();
+    _servingsController.text = r.servings.toString();
+    _selectedEquipment.addAll(r.requiredEquipment);
+    if (r.ingredients.isNotEmpty) {
+      _ingredients
+        ..clear()
+        ..addAll(
+          r.ingredients.map((i) {
+            final e = _IngredientEntry();
+            e.nameController.text = i.productName;
+            e.quantityController.text = _numText(i.quantity);
+            e.unit = i.unit;
+            return e;
+          }),
+        );
+    }
+    if (r.steps.isNotEmpty) {
+      final steps = [...r.steps]..sort((a, b) => a.order.compareTo(b.order));
+      _stepControllers
+        ..clear()
+        ..addAll(steps.map((s) => TextEditingController(text: s.description)));
+    }
+  }
+
+  String _numText(num v) => v % 1 == 0 ? v.toInt().toString() : v.toString();
 
   @override
   void dispose() {
@@ -96,7 +137,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
         .toList();
 
     final recipe = Recipe(
-      id: '',
+      id: widget.existing?.id ?? '',
       name: _nameController.text.trim(),
       description: _descController.text.trim(),
       calories: double.tryParse(_caloriesController.text) ?? 0,
@@ -113,7 +154,10 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
     setState(() => _saving = true);
     try {
-      final saved = await RecipeService.instance.createRecipe(recipe);
+      final isEdit = widget.existing != null;
+      final saved = isEdit
+          ? await RecipeService.instance.updateRecipe(recipe)
+          : await RecipeService.instance.createRecipe(recipe);
       Recipe finalRecipe = saved;
       if (_imageFile != null) {
         finalRecipe = await RecipeService.instance.uploadImage(
@@ -121,11 +165,33 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           File(_imageFile!.path),
         );
       }
-      AppStore.instance.addRecipe(finalRecipe);
+      if (isEdit) {
+        AppStore.instance.updateRecipe(finalRecipe);
+      } else {
+        AppStore.instance.addRecipe(finalRecipe);
+      }
       if (mounted) Navigator.of(context).pop(true);
-    } catch (_) {
-      if (mounted) setState(() => _saving = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Не удалось сохранить рецепт: ${_apiError(e)}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  String _apiError(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      final body = e.response?.data;
+      if (code != null) return 'код $code${body != null ? ' — $body' : ''}';
+      return e.message ?? 'нет соединения с сервером';
+    }
+    return e.toString();
   }
 
   @override
@@ -142,7 +208,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Новый рецепт',
+          widget.existing != null ? 'Редактировать рецепт' : 'Новый рецепт',
           style: TextStyle(
             color: cs.onSurface,
             fontWeight: FontWeight.bold,
@@ -177,7 +243,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-_sectionLabel(cs, 'Фото'),
+              _sectionLabel(cs, 'Фото'),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: _pickImage,
@@ -221,7 +287,7 @@ _sectionLabel(cs, 'Фото'),
                 ),
               ),
               const SizedBox(height: 20),
-_sectionLabel(cs, 'Основное'),
+              _sectionLabel(cs, 'Основное'),
               const SizedBox(height: 8),
               _card(
                 cs,
@@ -232,8 +298,9 @@ _sectionLabel(cs, 'Основное'),
                       controller: _nameController,
                       hint: 'Название рецепта',
                       showDivider: true,
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Введите название' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Введите название'
+                          : null,
                     ),
                     _cardField(
                       cs,
@@ -258,7 +325,9 @@ _sectionLabel(cs, 'Основное'),
                           child: TextFormField(
                             controller: _timeController,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             style: TextStyle(color: cs.onSurface),
                             decoration: InputDecoration(
                               hintText: '30',
@@ -286,7 +355,9 @@ _sectionLabel(cs, 'Основное'),
                           child: TextFormField(
                             controller: _servingsController,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             style: TextStyle(color: cs.onSurface),
                             decoration: InputDecoration(
                               hintText: '2',
@@ -318,7 +389,7 @@ _sectionLabel(cs, 'Основное'),
                   _nutritionField(cs, _carbsController, 'Углев., г'),
                 ],
               ),
-if (_equipmentOptions.isNotEmpty) ...[
+              if (_equipmentOptions.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 _sectionLabel(cs, 'Необходимая техника'),
                 const SizedBox(height: 8),
@@ -362,7 +433,7 @@ if (_equipmentOptions.isNotEmpty) ...[
                 ),
               ],
               const SizedBox(height: 20),
-_sectionLabel(cs, 'Ингредиенты'),
+              _sectionLabel(cs, 'Ингредиенты'),
               const SizedBox(height: 8),
               ..._ingredients.asMap().entries.map(
                 (e) => _IngredientRow(
@@ -386,7 +457,7 @@ _sectionLabel(cs, 'Ингредиенты'),
                 ),
               ),
               const SizedBox(height: 8),
-_sectionLabel(cs, 'Шаги приготовления'),
+              _sectionLabel(cs, 'Шаги приготовления'),
               const SizedBox(height: 8),
               ..._stepControllers.asMap().entries.map(
                 (e) => _StepRow(
@@ -452,40 +523,40 @@ _sectionLabel(cs, 'Шаги приготовления'),
   }
 
   Widget _sectionLabel(ColorScheme cs, String text) => Text(
-        text,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: cs.onSurface,
-        ),
-      );
+    text,
+    style: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.bold,
+      color: cs.onSurface,
+    ),
+  );
 
   Widget _label(ColorScheme cs, String text) => Text(
-        text,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: cs.onSurfaceVariant,
-        ),
-      );
+    text,
+    style: TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: cs.onSurfaceVariant,
+    ),
+  );
 
   Widget _card(ColorScheme cs, {required Widget child}) => Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: _shadow,
-        ),
-        child: child,
-      );
+    decoration: BoxDecoration(
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: _shadow,
+    ),
+    child: child,
+  );
 
   Widget _inputCard(ColorScheme cs, {required Widget child}) => Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: _shadow,
-        ),
-        child: child,
-      );
+    decoration: BoxDecoration(
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: _shadow,
+    ),
+    child: child,
+  );
 
   Widget _cardField(
     ColorScheme cs, {
@@ -512,7 +583,8 @@ _sectionLabel(cs, 'Шаги приготовления'),
           ),
           validator: validator,
         ),
-        if (showDivider) Divider(color: Theme.of(context).dividerColor, height: 0),
+        if (showDivider)
+          Divider(color: Theme.of(context).dividerColor, height: 0),
       ],
     );
   }
@@ -526,7 +598,10 @@ _sectionLabel(cs, 'Шаги приготовления'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+          ),
           const SizedBox(height: 4),
           Container(
             decoration: BoxDecoration(
@@ -602,7 +677,10 @@ class _IngredientRow extends StatelessWidget {
                 style: TextStyle(color: cs.onSurface, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Ингредиент',
-                  hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: cs.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -630,7 +708,10 @@ class _IngredientRow extends StatelessWidget {
                 style: TextStyle(color: cs.onSurface, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: '100',
-                  hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: cs.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -731,7 +812,10 @@ class _StepRow extends StatelessWidget {
                 style: TextStyle(color: cs.onSurface, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Опишите шаг приготовления',
-                  hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
+                  hintStyle: TextStyle(
+                    color: cs.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,

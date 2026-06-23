@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/diary.dart';
@@ -78,6 +79,25 @@ class HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
+  /// Сразу добавляет запись в локальный дневник и пересчитывает итоги,
+  /// чтобы экран обновился мгновенно, не дожидаясь повторной загрузки.
+  void _applyNewEntry(DiaryEntry entry) {
+    final current = AppStore.instance.todayDiary;
+    final entries = [...?current?.entries, entry];
+    double sum(double Function(DiaryEntry) f) =>
+        entries.fold(0.0, (s, e) => s + f(e));
+    AppStore.instance.todayDiary = DiaryDay(
+      entries: entries,
+      totals: DiaryTotals(
+        calories: sum((e) => e.calories),
+        proteins: sum((e) => e.proteins),
+        fats: sum((e) => e.fats),
+        carbs: sum((e) => e.carbs),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
   String get _greeting {
     final h = DateTime.now().hour;
     if (h >= 5 && h < 12) return 'Доброе утро';
@@ -132,6 +152,7 @@ class HomeScreenState extends State<HomeScreen> {
             d.date.year == today.year &&
             d.date.month == today.month &&
             d.date.day == today.day,
+        orElse: () => plan.days.first,
       );
       return switch (mealType) {
         'breakfast' => day.breakfast,
@@ -143,6 +164,16 @@ class HomeScreenState extends State<HomeScreen> {
     } catch (_) {
       return null;
     }
+  }
+
+  String _apiError(Object e) {
+    if (e is DioException) {
+      final code = e.response?.statusCode;
+      final body = e.response?.data;
+      if (code != null) return 'код $code${body != null ? ' — $body' : ''}';
+      return e.message ?? 'нет соединения с сервером';
+    }
+    return e.toString();
   }
 
   void _showAddEntry(String mealType, String mealLabel) {
@@ -180,7 +211,7 @@ class HomeScreenState extends State<HomeScreen> {
             setSheet(() => sending = true);
             try {
               final today = DateTime.now().toIso8601String().substring(0, 10);
-              await DiaryService.instance.addEntry(
+              final entry = await DiaryService.instance.addEntry(
                 date: today,
                 mealType: mealType,
                 name: name,
@@ -191,9 +222,18 @@ class HomeScreenState extends State<HomeScreen> {
                 carbs: carb,
               );
               if (ctx.mounted) Navigator.pop(ctx);
+              _applyNewEntry(entry);
               await _reload();
-            } catch (_) {
-              setSheet(() => sending = false);
+            } catch (e) {
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Не удалось добавить: ${_apiError(e)}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             }
           }
 

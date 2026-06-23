@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/recipe.dart';
 import '../../services/api_client.dart';
+import '../../services/recipe_service.dart';
 import '../../store.dart';
 import 'add_recipe_screen.dart';
 import 'recipe_detail_screen.dart';
@@ -24,6 +25,16 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
       context,
     ).push<bool>(MaterialPageRoute(builder: (_) => const AddRecipeScreen()));
     if (added == true) setState(() {});
+  }
+
+  Future<void> _toggleFavorite(String id) async {
+    final wasFav = AppStore.instance.favoriteRecipeIds.contains(id);
+    setState(() => AppStore.instance.toggleFavorite(id));
+    try {
+      await RecipeService.instance.toggleFavorite(id, wasFav);
+    } catch (_) {
+      if (mounted) setState(() => AppStore.instance.toggleFavorite(id));
+    }
   }
 
   @override
@@ -110,9 +121,12 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
     final isFav = AppStore.instance.favoriteRecipeIds.contains(recipe.id);
 
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
-      ),
+      onTap: () async {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+        );
+        if (mounted) setState(() {});
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
@@ -186,15 +200,15 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
                   ],
                 ),
               ),
-              IconButton(
-                icon: Icon(
-                  Icons.favorite,
-                  color: isFav ? Colors.red : cs.outline,
-                  size: 22,
+              if (!recipe.isPersonal)
+                IconButton(
+                  icon: Icon(
+                    Icons.favorite,
+                    color: isFav ? Colors.red : cs.outline,
+                    size: 22,
+                  ),
+                  onPressed: () => _toggleFavorite(recipe.id),
                 ),
-                onPressed: () =>
-                    setState(() => AppStore.instance.toggleFavorite(recipe.id)),
-              ),
             ],
           ),
         ),
@@ -203,7 +217,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
   }
 
   Widget _thumb(ColorScheme cs) => Container(
-        color: cs.outline.withValues(alpha: 0.2),
-        child: Icon(Icons.restaurant, color: cs.onSurfaceVariant, size: 26),
-      );
+    color: cs.outline.withValues(alpha: 0.2),
+    child: Icon(Icons.restaurant, color: cs.onSurfaceVariant, size: 26),
+  );
 }

@@ -8,6 +8,7 @@ import '../../models/recipe.dart';
 import '../../services/api_client.dart';
 import '../../services/recipe_service.dart';
 import '../../store.dart';
+import 'add_recipe_screen.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -31,8 +32,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _recipe = widget.recipe;
   }
 
-  bool get _isFav =>
-      AppStore.instance.favoriteRecipeIds.contains(_recipe.id);
+  bool get _isFav => AppStore.instance.favoriteRecipeIds.contains(_recipe.id);
 
   Future<void> _toggleFavorite() async {
     final wasFav = _isFav;
@@ -42,6 +42,87 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => AppStore.instance.toggleFavorite(_recipe.id));
+      }
+    }
+  }
+
+  void _showRecipeMenu() {
+    final cs = Theme.of(context).colorScheme;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: cs.outline,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Icon(Icons.edit_outlined, color: cs.primary),
+                title: const Text('Редактировать'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _editRecipe();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Удалить',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _deleteRecipe();
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editRecipe() async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => AddRecipeScreen(existing: _recipe)),
+    );
+    if (updated == true && mounted) {
+      final fresh = AppStore.instance.recipes.firstWhere(
+        (r) => r.id == _recipe.id,
+        orElse: () => _recipe,
+      );
+      setState(() => _recipe = fresh);
+    }
+  }
+
+  Future<void> _deleteRecipe() async {
+    try {
+      await RecipeService.instance.deleteRecipe(_recipe.id);
+      AppStore.instance.removeRecipe(_recipe.id);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Не удалось удалить рецепт'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -64,10 +145,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
             if (hasImage)
               ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.red,
-                ),
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
                 title: const Text(
                   'Удалить фото',
                   style: TextStyle(color: Colors.red),
@@ -111,10 +189,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       ..sort((a, b) => a.order.compareTo(b.order));
     final main = image.first;
     try {
-      await RecipeService.instance.deleteImage(
-        _recipe.id,
-        main.id.toString(),
-      );
+      await RecipeService.instance.deleteImage(_recipe.id, main.id.toString());
       final remaining = _recipe.images.where((i) => i.id != main.id).toList();
       final updated = Recipe(
         id: _recipe.id,
@@ -225,22 +300,36 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ),
       ),
       actions: [
-        GestureDetector(
-          onTap: _toggleFavorite,
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Colors.black26,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              _isFav ? Icons.favorite : Icons.favorite_border,
-              color: _isFav ? Colors.redAccent : Colors.white,
-              size: 20,
+        if (!r.isPersonal)
+          GestureDetector(
+            onTap: _toggleFavorite,
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.black26,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _isFav ? Icons.favorite : Icons.favorite_border,
+                color: _isFav ? Colors.redAccent : Colors.white,
+                size: 20,
+              ),
             ),
           ),
-        ),
+        if (r.isPersonal)
+          GestureDetector(
+            onTap: _showRecipeMenu,
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.black26,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.more_vert, color: Colors.white, size: 20),
+            ),
+          ),
       ],
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: EdgeInsets.zero,
@@ -556,13 +645,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Widget _imagePlaceholder() => Container(
-        color: const Color(0xFFD0E8D4),
-        child: Icon(
-          Icons.restaurant,
-          size: 80,
-          color: const Color(0xFF2E9B45).withValues(alpha: 0.3),
-        ),
-      );
+    color: const Color(0xFFD0E8D4),
+    child: Icon(
+      Icons.restaurant,
+      size: 80,
+      color: const Color(0xFF2E9B45).withValues(alpha: 0.3),
+    ),
+  );
 
   Widget _sectionTitle(ColorScheme cs, String text) {
     return Text(

@@ -42,13 +42,25 @@ class RecipesScreenState extends State<RecipesScreen> {
   Future<void> _loadRecipes() async {
     try {
       final recipes = RecipeService.instance.getRecipes();
+      final personal = RecipeService.instance.getPersonalRecipes().catchError(
+        (_) => <Recipe>[],
+      );
       final favIds = RecipeService.instance.getFavoriteIds();
       final prefs = PreferencesService.instance.getPreferences();
       final options = PreferencesService.instance.getOptions();
 
+      // Личные рецепты приходят с отдельного эндпоинта; объединяем оба
+      // списка по id, чтобы созданный рецепт не пропадал из «Моих рецептов».
+      final byId = <String, Recipe>{};
+      for (final r in await recipes) {
+        byId[r.id] = r;
+      }
+      for (final r in await personal) {
+        byId[r.id] = r;
+      }
       AppStore.instance.recipes
         ..clear()
-        ..addAll(await recipes);
+        ..addAll(byId.values);
       AppStore.instance.favoriteRecipeIds
         ..clear()
         ..addAll(await favIds);
@@ -57,6 +69,17 @@ class RecipesScreenState extends State<RecipesScreen> {
     } catch (_) {
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleFavorite(String id) async {
+    final wasFav = AppStore.instance.favoriteRecipeIds.contains(id);
+    setState(() => AppStore.instance.toggleFavorite(id));
+    try {
+      await RecipeService.instance.toggleFavorite(id, wasFav);
+    } catch (_) {
+      // откатываем локальное изменение, если сервер не принял
+      if (mounted) setState(() => AppStore.instance.toggleFavorite(id));
     }
   }
 
@@ -120,7 +143,9 @@ class RecipesScreenState extends State<RecipesScreen> {
             .map((s) => s.toLowerCase())
             .toList();
         if (favProducts.isNotEmpty) {
-          list.sort((a, b) => _favScore(b, favProducts) - _favScore(a, favProducts));
+          list.sort(
+            (a, b) => _favScore(b, favProducts) - _favScore(a, favProducts),
+          );
         }
     }
     return list;
@@ -164,15 +189,17 @@ class RecipesScreenState extends State<RecipesScreen> {
                           recipe: _myRecipes[i],
                           width: 155,
                           showFavorite: false,
-                          onFavoriteToggle: () => setState(() {
-                            AppStore.instance.toggleFavorite(_myRecipes[i].id);
-                          }),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  RecipeDetailScreen(recipe: _myRecipes[i]),
-                            ),
-                          ),
+                          onFavoriteToggle: () =>
+                              _toggleFavorite(_myRecipes[i].id),
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    RecipeDetailScreen(recipe: _myRecipes[i]),
+                              ),
+                            );
+                            if (mounted) setState(() {});
+                          },
                         ),
                       ),
                     )
@@ -202,11 +229,8 @@ class RecipesScreenState extends State<RecipesScreen> {
                         itemCount: _recommendations.length,
                         itemBuilder: (ctx, i) => _RecipeCard(
                           recipe: _recommendations[i],
-                          onFavoriteToggle: () => setState(() {
-                            AppStore.instance.toggleFavorite(
-                              _recommendations[i].id,
-                            );
-                          }),
+                          onFavoriteToggle: () =>
+                              _toggleFavorite(_recommendations[i].id),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => RecipeDetailScreen(
@@ -226,7 +250,9 @@ class RecipesScreenState extends State<RecipesScreen> {
   }
 
   int _favScore(Recipe r, List<String> favProducts) {
-    final text = r.ingredients.map((i) => i.productName.toLowerCase()).join(' ');
+    final text = r.ingredients
+        .map((i) => i.productName.toLowerCase())
+        .join(' ');
     return favProducts.where((p) => text.contains(p)).length;
   }
 
@@ -296,9 +322,13 @@ class RecipesScreenState extends State<RecipesScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+            ),
             decoration: BoxDecoration(
               color: cs.surface,
               borderRadius: const BorderRadius.vertical(
@@ -306,43 +336,24 @@ class RecipesScreenState extends State<RecipesScreen> {
               ),
             ),
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: cs.outline,
-                      borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: cs.outline,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Время приготовления',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: cs.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _filterChip(cs, setSheet, 'Любое', null, _maxTimeFilter),
-                    _filterChip(cs, setSheet, '≤ 15 мин', 15, _maxTimeFilter),
-                    _filterChip(cs, setSheet, '≤ 30 мин', 30, _maxTimeFilter),
-                    _filterChip(cs, setSheet, '≤ 60 мин', 60, _maxTimeFilter),
-                  ],
-                ),
-                if (AppStore.instance.kitchenEquipmentOptions.isNotEmpty) ...[
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   Text(
-                    'Кухонная техника',
+                    'Время приготовления',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -352,60 +363,82 @@ class RecipesScreenState extends State<RecipesScreen> {
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
-                    runSpacing: 6,
                     children: [
-                      _equipmentChip(cs, setSheet, 'Любая', null),
-                      ...AppStore.instance.kitchenEquipmentOptions.map(
-                        (opt) => _equipmentChip(cs, setSheet, opt.label, opt.key),
-                      ),
+                      _filterChip(cs, setSheet, 'Любое', null, _maxTimeFilter),
+                      _filterChip(cs, setSheet, '≤ 15 мин', 15, _maxTimeFilter),
+                      _filterChip(cs, setSheet, '≤ 30 мин', 30, _maxTimeFilter),
+                      _filterChip(cs, setSheet, '≤ 60 мин', 60, _maxTimeFilter),
                     ],
                   ),
-                ],
-                const SizedBox(height: 20),
-                Text(
-                  'Сортировка',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: cs.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    _sortChip(cs, setSheet, 'По умолчанию', _SortBy.none),
-                    _sortChip(cs, setSheet, 'По названию', _SortBy.name),
-                    _sortChip(cs, setSheet, 'По калориям', _SortBy.calories),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {});
-                      Navigator.pop(ctx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: cs.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text(
-                      'Применить',
+                  if (AppStore.instance.kitchenEquipmentOptions.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      'Кухонная техника',
                       style: TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.bold,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _equipmentChip(cs, setSheet, 'Любая', null),
+                        ...AppStore.instance.kitchenEquipmentOptions.map(
+                          (opt) =>
+                              _equipmentChip(cs, setSheet, opt.label, opt.key),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Text(
+                    'Сортировка',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      _sortChip(cs, setSheet, 'По умолчанию', _SortBy.none),
+                      _sortChip(cs, setSheet, 'По названию', _SortBy.name),
+                      _sortChip(cs, setSheet, 'По калориям', _SortBy.calories),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {});
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: cs.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        'Применить',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         },
@@ -714,7 +747,7 @@ class _RecipeCard extends StatelessWidget {
   }
 
   Widget _recipePlaceholder(ColorScheme cs) => Container(
-        color: cs.outline.withValues(alpha: 0.25),
-        child: Icon(Icons.restaurant, color: cs.onSurfaceVariant, size: 36),
-      );
+    color: cs.outline.withValues(alpha: 0.25),
+    child: Icon(Icons.restaurant, color: cs.onSurfaceVariant, size: 36),
+  );
 }

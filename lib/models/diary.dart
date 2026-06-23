@@ -50,15 +50,15 @@ class DiaryEntry {
   });
 
   factory DiaryEntry.fromJson(Map<String, dynamic> j) => DiaryEntry(
-    id: j['id'] as int,
-    date: j['date'] as String,
-    mealType: j['meal_type'] as String,
-    name: j['name'] as String,
-    calories: (j['calories'] as num).toDouble(),
-    proteins: (j['proteins'] as num).toDouble(),
-    fats: (j['fats'] as num).toDouble(),
-    carbs: (j['carbs'] as num).toDouble(),
-    recipeId: j['recipe_id'] as int?,
+    id: (j['id'] as num).toInt(),
+    date: j['date'] as String? ?? '',
+    mealType: j['meal_type'] as String? ?? '',
+    name: j['name'] as String? ?? j['recipe_name'] as String? ?? '',
+    calories: (j['calories'] as num?)?.toDouble() ?? 0,
+    proteins: (j['proteins'] as num?)?.toDouble() ?? 0,
+    fats: (j['fats'] as num?)?.toDouble() ?? 0,
+    carbs: (j['carbs'] as num?)?.toDouble() ?? 0,
+    recipeId: (j['recipe_id'] as num?)?.toInt(),
   );
 }
 

@@ -13,7 +13,12 @@ class DiaryService {
   }
 
   Future<DiaryDay> getTodayDiary() async {
-    final response = await _dio.get('/diary/today');
+    // Читаем дневник по локальной дате устройства — той же, что
+    // используется при добавлении записи. Так POST и GET всегда
+    // согласованы, даже если таймзона устройства не совпадает с серверной
+    // (иначе /diary/today фильтрует по дате сервера и записи «теряются»).
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final response = await _dio.get('/diary', queryParameters: {'date': today});
     return DiaryDay.fromJson(response.data as Map<String, dynamic>);
   }
 

@@ -38,6 +38,11 @@ class AppStore {
     if (idx != -1) recipes[idx] = recipe;
   }
 
+  void removeRecipe(String id) {
+    recipes.removeWhere((r) => r.id == id);
+    favoriteRecipeIds.remove(id);
+  }
+
   void toggleFavorite(String recipeId) {
     if (favoriteRecipeIds.contains(recipeId)) {
       favoriteRecipeIds.remove(recipeId);
